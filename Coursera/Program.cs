@@ -1,19 +1,21 @@
-﻿using Coursera.Data;
+﻿using System;
+using System.Linq;
+using System.Globalization;
+using System.IO;
+using Coursera.Data;
 using Coursera.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
 using Coursera;
 using Microsoft.IdentityModel.Tokens;
 
-
 internal class Program
 {
-    string std_pin_Input;
     private static void Main(string[] args)
     {
-        TakeIputs();
+        TakeInputs();
     }
-    static void TakeIputs()
+
+    static void TakeInputs()
     {
         Console.WriteLine("Enter the Comma separated list of personal identifiers (PIN) of the students to be included in the report OR press Enter to select all students:");
         string std_pin_Input = Console.ReadLine();
@@ -22,71 +24,46 @@ internal class Program
     credit:
         Console.WriteLine("Enter required minimum credit:");
         string minimumCredit = Console.ReadLine();
-        if (int.TryParse(minimumCredit, out int minimum_Credit))
+        if (!int.TryParse(minimumCredit, out int minimum_Credit))
         {
-        }
-        else
-        {
-            Console.WriteLine("Credit is required..");
+            Console.WriteLine("Credit is required and must be a number.");
             goto credit;
         }
 
     startdate:
-        Console.WriteLine("Enter the start date of the time period for which the students should have collected the requested credit:");
+        Console.WriteLine("Enter the start date of the time period for which the students should have collected the requested credit (yyyy-mm-dd):");
         string startdate = Console.ReadLine();
-        DateTime start_date;
-        if (DateTime.TryParseExact(startdate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out start_date))
+        if (!DateTime.TryParseExact(startdate, "yyyy-mm-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime start_date))
         {
-        }
-        else
-        {
-            Console.WriteLine("Invalid date format. Please enter the date in the correct format.");
+            Console.WriteLine("Invalid date format. Please enter the date in the correct format (yyyy-mm-dd).");
             goto startdate;
         }
 
     enddate:
-        Console.WriteLine("Enter the end date of the time period for which the students should have collected the requested credit:");
+        Console.WriteLine("Enter the end date of the time period for which the students should have collected the requested credit (yyyy-mm-dd):");
         string enddate = Console.ReadLine();
-        DateTime end_date;
-        if (DateTime.TryParseExact(enddate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out end_date))
+        if (!DateTime.TryParseExact(enddate, "yyyy-mm-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime end_date))
         {
-        }
-        else
-        {
-            Console.WriteLine("Invalid date format. Please enter the date in the correct format.");
+            Console.WriteLine("Invalid date format. Please enter the date in the correct format (yyyy-mm-dd).");
             goto enddate;
         }
 
-        Console.WriteLine("Enter the output format (csv or html) OR Press Enter for both:");
+        Console.WriteLine("Enter the output format (csv or html) OR press Enter for both:");
         string format = Console.ReadLine();
 
-        path:
-        Console.WriteLine("Enter the path to save result: e.g; (D://New Folder//)");
+    path:
+        Console.WriteLine("Enter the path to save result (e.g., D://New Folder//):");
         string path = Console.ReadLine();
-        if (path.IsNullOrEmpty())
+        if (string.IsNullOrEmpty(path))
         {
-            Console.WriteLine("Path is required..");
+            Console.WriteLine("Path is required.");
             goto path;
         }
-        
-        List<Student> _students = GetStudentsReport(std_pin_Input_List, minimum_Credit, start_date, end_date);
 
-        if (format == "csv")
-        {
-            CSVReport _report = new CSVReport(_students, path);
-        }
-        else if (format == "html")
-        {
-            HtmlReport _report = new HtmlReport(_students, path);
-        }
-        else
-        {
-            HtmlReport _report = new HtmlReport(_students, path);
-            CSVReport report = new CSVReport(_students, path);
-        }
+        GetStudentsReport(std_pin_Input_List, minimum_Credit, start_date, end_date, path, format);
     }
 
-    public static List<Student> GetStudentsReport(string[] InputPin, int InputCredit, DateTime InputStartingDate, DateTime InputEndingDate)
+    public static void GetStudentsReport(string[] inputPins, int inputCredit, DateTime inputStartingDate, DateTime inputEndingDate, string path, string format)
     {
         using (var dbContext = new CourseraContext())
         {
@@ -97,28 +74,43 @@ internal class Program
                     .ThenInclude(c => c.Course)
                     .ThenInclude(course => course.Instructor);
 
-
-                if (InputPin.Length == 1)
+                if (inputPins.Length == 1)
                 {
-                    studentsQuery = studentsQuery.Where(s => s.Pin == InputPin[0]);
+                    studentsQuery = studentsQuery.Where(s => s.Pin == inputPins[0]);
+                }
+                else if (inputPins.Length > 1)
+                {
+                    studentsQuery = studentsQuery.Where(x => inputPins.Equals(x.Pin));
                 }
                 else
                 {
-                    studentsQuery = studentsQuery.Where(s => InputPin.Contains(s.Pin));
+                    studentsQuery = studentsQuery;
                 }
 
-                List<Student> stduents_report = studentsQuery
+                List<Student> studentsReport = studentsQuery
                     .Where(s => s.StudentsCoursesXrefs
-                        .Where(c => c.CompletionDate >= InputStartingDate && c.CompletionDate <= InputEndingDate)
-                        .Sum(c => c.Course.Credit) >= InputCredit)
+                        .Where(c => c.CompletionDate >= inputStartingDate && c.CompletionDate <= inputEndingDate)
+                        .Sum(c => c.Course.Credit) >= inputCredit)
                     .ToList();
-                return stduents_report;
+
+                if (format == "csv")
+                {
+                    CSVReport report = new CSVReport(studentsReport, path);
+                }
+                else if (format == "html")
+                {
+                    HtmlReport report = new HtmlReport(studentsReport, path);
+                }
+                else
+                {
+                    HtmlReport htmlReport = new HtmlReport(studentsReport, path);
+                    CSVReport csvReport = new CSVReport(studentsReport, path);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred while querying students: {ex.Message}");
             }
         }
-        return null;
     }
 }
