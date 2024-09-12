@@ -1,12 +1,8 @@
-﻿using System;
-using System.Linq;
-using System.Globalization;
-using System.IO;
+﻿using System.Globalization;
 using Coursera.Data;
 using Coursera.Models;
 using Microsoft.EntityFrameworkCore;
 using Coursera;
-using Microsoft.IdentityModel.Tokens;
 
 internal class Program
 {

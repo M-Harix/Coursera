@@ -1,10 +1,8 @@
 ﻿using Coursera.Models;
-using System.Formats.Asn1;
 using System.Globalization;
 using Coursera;
 using CsvHelper;
 using CsvHelper.Configuration;
-using Microsoft.EntityFrameworkCore;
 namespace Coursera
 {
     public class CSVReport
